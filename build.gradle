@@ -1,7 +1,13 @@
+buildscript {
+    ext {
+        awsAccessKeyId = System.env.AWS_ACCESS_KEY_ID ?: findProperty('aws_access_key_id')
+        awsSecretAccessKey = System.env.AWS_SECRET_ACCESS_KEY ?: findProperty('aws_secret_access_key')
+    }
+}
 plugins {
     id 'java'
     id 'maven-publish'
-    id 'com.jfrog.artifactory' version '4.23.0'
+    id 'com.jfrog.artifactory' version '4.21.0'
     id 'com.github.johnrengelman.shadow' version '6.1.0'
 }
 
@@ -14,6 +20,28 @@ apply from: "$rootDir/gradle/release.gradle"
 repositories {
     jcenter()
     mavenCentral()
+    repositories {
+        maven {
+            url = "s3://riq-artifactory/snapshot"
+            credentials(AwsCredentials) {
+                accessKey = awsAccessKeyId
+                secretKey = awsSecretAccessKey
+            }
+        }
+    }
+
+}
+
+publishing {
+    repositories {
+        maven {
+            url = "s3://riq-artifactory/snapshot"
+            credentials(AwsCredentials) {
+                accessKey = awsAccessKeyId
+                secretKey = awsSecretAccessKey
+            }
+        }
+    }
 }
 
 dependencies {
@@ -29,7 +57,7 @@ dependencies {
     annotationProcessor ("com.google.auto.service:auto-service:${autoServiceVersion}")
     implementation ("com.google.auto.value:auto-value-annotations:${autoValueVersion}")
     annotationProcessor ("com.google.auto.value:auto-value:${autoValueVersion}")
-    
+
     testImplementation ("org.apache.jclouds:jclouds-core:${jcloudsVersion}:tests")
     testImplementation ("org.apache.jclouds.driver:jclouds-slf4j:${jcloudsVersion}")
     testImplementation ('org.testng:testng:7.4.0')
@@ -51,6 +79,9 @@ jar {
                    'Built-Date': new Date(),
                    'Built-JDK': System.getProperty('java.version'),
                    'Built-Gradle': gradle.gradleVersion
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
 
